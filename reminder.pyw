@@ -3,8 +3,9 @@ import tkinter as tk
 from datetime import datetime
 import sys
 
+
 class window(tk.Frame):
-    def __init__(self, master,filename):
+    def __init__(self, master, filename):
         self.filename = filename
         self.index = -1
         tk.Frame.__init__(self, master=master)
@@ -39,6 +40,8 @@ class window(tk.Frame):
 
         master.bind("<ButtonRelease-3>", self.popup)
         master.bind("<ButtonPress-1>", self.deselect)
+        master.bind("<Insert>", self.insert)
+        master.bind("<Delete>", self.delete)
 
         self.tree.pack()
 
@@ -122,65 +125,86 @@ class window(tk.Frame):
             self._write_children(file, item, self.index)
         return
 
-    def modify(self):
-        try:
-            item = self.tree.selection()[0]
+    def edit(self, item, text):
+        popup = Tk()
+        popup.config(padx=8, pady=5)
 
-            popup = Tk()
-            popup.config(padx=8, pady=5)
+        def check2delete():
+            if self.tree.set(item, 'due') == '' and self.tree.set(item, 'notes') == '' and self.tree.item(item, 'text') == '':
+                self.tree.delete(item)
+            popup.destroy()  # find better way
 
-            def close_window():
-                self.tree.item(item, text=name.get())
+        def close_window():
+            self.tree.item(item, text=name.get())
 
-                self.tree.set(item, 2, date.get())
-                self.tree.set(item, 0, self.displayDueDate(date.get()))
+            self.tree.set(item, 2, date.get())
+            self.tree.set(item, 0, self.displayDueDate(date.get().strip()))
+            self.tree.set(item, 1, notes.get())
 
-                self.tree.set(item, 1, notes.get())
-                popup.destroy()  # find better way
+            check2delete()
 
-            def set_text(e, text):
-                e.delete(0, tk.END)
-                e.insert(0, text)
-                return
+        def close_window2(event=None):
+            close_window()
 
-            name = tk.Entry(popup)
-            set_text(name, self.tree.item(item, 'text'))
-            date = tk.Entry(popup)
-
-            set_text(date, self.tree.set(item, 2))
-
-            notes = tk.Entry(popup)
-            set_text(notes, self.tree.set(item, 1))
-            exit = tk.Button(popup, text='Modify', command=close_window)
-
-            ttk.Label(popup, text="Modify Item").grid(row=0, column=0, columnspan=2)
-            ttk.Label(popup, text="Item name").grid(sticky=tk.W, row=1, column=0)
-            ttk.Label(popup, text="Due date").grid(sticky=tk.W, row=2, column=0)
-            ttk.Label(popup, text="notes").grid(sticky=tk.W, row=3, column=0)
-
-            name.grid(row=1, sticky=tk.E, column=1)
-            date.grid(row=2, sticky=tk.E, column=1)
-            notes.grid(row=3, sticky=tk.E, column=1)
-
-            exit.grid(row=4, columnspan=2)
-            exit.config(width=10)
-        except IndexError:
+        def set_text(e, text):
+            e.delete(0, tk.END)
+            e.insert(0, text)
             return
 
-    def insert(self):
+        popup.bind("<Return>", close_window2)
+        popup.protocol("WM_DELETE_WINDOW", check2delete)
+
+        name = tk.Entry(popup)
+
+        set_text(name, self.tree.item(item, 'text'))
+        date = tk.Entry(popup)
+
+        set_text(date, self.tree.set(item, 2))
+
+        notes = tk.Entry(popup)
+        set_text(notes, self.tree.set(item, 1))
+        exit = tk.Button(popup, text=text, command=close_window)
+
+        ttk.Label(popup, text=text + " Item").grid(row=0, column=0, columnspan=2)
+        ttk.Label(popup, text="Item name").grid(sticky=tk.W, row=1, column=0)
+        ttk.Label(popup, text="Due date").grid(sticky=tk.W, row=2, column=0)
+        ttk.Label(popup, text="notes").grid(sticky=tk.W, row=3, column=0)
+
+        name.grid(row=1, sticky=tk.E, column=1)
+        date.grid(row=2, sticky=tk.E, column=1)
+        notes.grid(row=3, sticky=tk.E, column=1)
+
+        name.focus_set()
+        popup.focus_force()
+
+        exit.grid(row=4, columnspan=2)
+        exit.config(width=10)
+
+    def modify(self):
+        item = self.tree.selection()
+        if len(item) == 1:
+            self.edit(item[0], 'Modify')
+
+    #    def booleanPopup(self,text):
+    #        popup = Tk()
+    #        popup.config(padx=8, pady=5)
+    #        ttk.Label(popup, text=text).grid(row=0, column=0, columnspan=2)
+    #        ttk.Button
+
+    def insert(self, event=None):
         selection = self.tree.selection()
         self.index += 1
         if len(selection) == 0:
-            self.tree.insert("", 0, text='<empty>')
+            item = self.tree.insert("", 0, text='')
         else:
             self.tree.item(selection[0], open=True)
-            self.tree.insert(selection[0], 0, text='<empty>')
+            item = self.tree.insert(selection[0], 0, text='')
+        self.edit(item, 'Insert')
 
-    def delete(self):
-        try:
-            self.tree.delete(self.tree.selection()[0])
-        except IndexError:
-            pass
+    def delete(self, event=None):
+        selection = self.tree.selection()
+        if len(selection) != 0:
+            self.tree.delete(selection[0])
 
 
 if __name__ == "__main__":
